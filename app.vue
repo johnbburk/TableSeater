@@ -17,9 +17,9 @@ const printMode = ref(false)
 
 // New: Number of tables for each grade
 const tablesPerGrade = ref({
-  6: 6,
-  7: 6,
-  8: 6
+  6: 8,
+  7: 9,
+  8: 10
 })
 
 // Load data from local storage on component mount
