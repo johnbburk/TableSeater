@@ -17,6 +17,7 @@ const tables = ref<Record<number, Record<number, Person[][]>>>({})
 const studentInput = ref('')
 const teacherInput = ref('')
 const activeTab = ref('rosters')
+const printMode = ref(false)
 
 // Load data from local storage on component mount
 onMounted(() => {
@@ -220,26 +221,44 @@ const resetList = (type: 'student' | 'teacher') => {
     localStorage.removeItem('teachers')
   }
 }
+
+const printTableCards = () => {
+  printMode.value = true
+  setTimeout(() => {
+    window.print()
+    printMode.value = false
+  }, 100)
+}
+
+const printStudentLists = () => {
+  printMode.value = true
+  setTimeout(() => {
+    window.print()
+    printMode.value = false
+  }, 100)
+}
 </script>
 
 <template>
-  <div>
-    <h1>Table Assignment Generator</h1>
-    
-    <div class="rotation-selector" v-if="Object.keys(tables).length">
-      <label for="rotation-select">Select Rotation:</label>
-      <select id="rotation-select" v-model="currentRotation">
-        <option v-for="rotation in numberOfRotations" :key="rotation" :value="rotation">
-          Rotation {{ rotation }}
-        </option>
-      </select>
-    </div>
+  <div :class="{ 'print-content': printMode }">
+    <div class="no-print">
+      <h1>Table Assignment Generator</h1>
+      
+      <div class="rotation-selector" v-if="Object.keys(tables).length">
+        <label for="rotation-select">Select Rotation:</label>
+        <select id="rotation-select" v-model="currentRotation">
+          <option v-for="rotation in numberOfRotations" :key="rotation" :value="rotation">
+            Rotation {{ rotation }}
+          </option>
+        </select>
+      </div>
 
-    <div class="tabs">
-      <button @click="activeTab = 'rosters'" :class="{ active: activeTab === 'rosters' }">Rosters</button>
-      <button @click="activeTab = 'assignments'" :class="{ active: activeTab === 'assignments' }">Table Assignments</button>
-      <button @click="activeTab = 'cards'" :class="{ active: activeTab === 'cards' }">Table Cards</button>
-      <button @click="activeTab = 'studentLists'" :class="{ active: activeTab === 'studentLists' }">Student Lists</button>
+      <div class="tabs">
+        <button @click="activeTab = 'rosters'" :class="{ active: activeTab === 'rosters' }">Rosters</button>
+        <button @click="activeTab = 'assignments'" :class="{ active: activeTab === 'assignments' }">Table Assignments</button>
+        <button @click="activeTab = 'cards'" :class="{ active: activeTab === 'cards' }">Table Cards</button>
+        <button @click="activeTab = 'studentLists'" :class="{ active: activeTab === 'studentLists' }">Student Lists</button>
+      </div>
     </div>
 
     <div v-if="activeTab === 'rosters'">
@@ -312,7 +331,8 @@ const resetList = (type: 'student' | 'teacher') => {
     </div>
 
     <div v-if="activeTab === 'cards'">
-      <h2>Table Cards</h2>
+      <h2 class="no-print">Table Cards</h2>
+      <button @click="printTableCards" class="print-button no-print">Print Table Cards</button>
       <div class="table-cards-container">
         <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
           <h3 class="table-number">Table {{ card.tableNumber }}</h3>
@@ -332,7 +352,8 @@ const resetList = (type: 'student' | 'teacher') => {
     </div>
 
     <div v-if="activeTab === 'studentLists'">
-      <h2>Student Lists</h2>
+      <h2 class="no-print">Student Lists</h2>
+      <button @click="printStudentLists" class="print-button no-print">Print Student Lists</button>
       <div class="student-lists-container">
         <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list-print">
           <h3>Grade {{ grade }}</h3>
@@ -434,10 +455,10 @@ li:hover {
 
 .table-card-print {
   width: 5.5in;
-  height: 8.5in;
+  height: 4.25in; /* Changed to half of 8.5in */
   border: 1px solid #000;
-  margin: 0.25in;
-  padding: 0.5in;
+  margin: 0.125in;
+  padding: 0.25in;
   box-sizing: border-box;
   page-break-inside: avoid;
   display: flex;
@@ -445,9 +466,9 @@ li:hover {
 }
 
 .table-number {
-  font-size: 24px;
+  font-size: 20px; /* Reduced font size */
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .grades-row {
@@ -469,39 +490,97 @@ li:hover {
 }
 
 .grade-list h4 {
+  font-size: 16px; /* Reduced font size */
   margin-top: 0;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
   text-align: center;
 }
 
 .grade-list ul {
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 0.5rem;
+  font-size: 12px; /* Reduced font size */
+}
+
+.grade-list li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media print {
-  body * {
-    visibility: hidden;
+  .no-print {
+    display: none !important;
   }
-  .table-cards-container, .table-cards-container * {
+  
+  .print-content {
     visibility: visible;
-  }
-  .table-cards-container {
     position: absolute;
     left: 0;
     top: 0;
+    width: 100%;
+  }
+
+  .table-cards-container, .student-lists-container {
+    visibility: visible;
+  }
+
+  .table-cards-container {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .table-card-print {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .student-lists-container {
+    column-count: 3;
+    column-gap: 1rem;
+    font-size: 8pt; /* Even smaller font for print */
+    line-height: 1.1; /* Tighter line height for print */
+  }
+
+  .grade-list-print {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1rem; /* Reduced margin */
+  }
+
+  .grade-list-print h3 {
+    font-size: 10pt; /* Smaller heading for print */
+  }
+
+  .student-item {
+    margin-bottom: 0.1rem; /* Further reduced margin for print */
+  }
+
+  /* Ensure the container takes up the full page */
+  .print-content {
+    width: 100%;
+    height: 100vh;
+    padding: 0.5in; /* Add some padding around the edges */
+    box-sizing: border-box;
   }
 }
 
 .student-lists-container {
-  column-width: 300px;
-  column-gap: 2rem;
+  column-count: 3;
+  column-gap: 1rem;
+  font-size: 10px; /* Reduced font size */
+  line-height: 1.2; /* Tightened line height */
 }
 
 .grade-list-print {
   break-inside: avoid;
   page-break-inside: avoid;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem; /* Reduced margin */
+}
+
+.grade-list-print h3 {
+  font-size: 14px; /* Reduced heading size */
+  margin-bottom: 0.5rem; /* Reduced margin */
 }
 
 .student-list {
@@ -510,21 +589,7 @@ li:hover {
 }
 
 .student-item {
-  margin-bottom: 0.5rem;
-}
-
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .student-lists-container, .student-lists-container * {
-    visibility: visible;
-  }
-  .student-lists-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-  }
+  margin-bottom: 0.2rem; /* Reduced margin */
 }
 
 .reset-button {
@@ -550,5 +615,18 @@ li:hover {
 
 .rotation-selector select {
   padding: 0.25rem;
+}
+
+.print-button {
+  margin-bottom: 1rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.print-button:hover {
+  background-color: #45a049;
 }
 </style>
