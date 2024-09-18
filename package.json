@@ -13,12 +13,5 @@
     "nuxt": "^3.13.0",
     "vue": "latest",
     "vue-router": "latest"
-  },
-  {
-    "version": 1,
-    "include": [
-      "/*"
-    ],
-    "exclude": []
   }
 }
