@@ -1,35 +1,33 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 
-interface Person {
+interface Student {
   name: string
-  type: 'student' | 'teacher'
   grade: number
 }
 
-const students = ref<Person[]>([])
-const teachers = ref<Person[]>([])
-const numberOfTables = ref(7)
+const students = ref<Student[]>([])
 const numberOfRotations = ref(6)
 const currentRotation = ref(1)
-const tables = ref<Record<number, Record<number, Person[][]>>>({})
+const tables = ref<Record<number, Record<number, Student[][]>>>({})
 
 const studentInput = ref('')
-const teacherInput = ref('')
 const activeTab = ref('rosters')
 const printMode = ref(false)
+
+// New: Number of tables for each grade
+const tablesPerGrade = ref({
+  6: 6,
+  7: 6,
+  8: 6
+})
 
 // Load data from local storage on component mount
 onMounted(() => {
   const savedStudents = localStorage.getItem('students')
-  const savedTeachers = localStorage.getItem('teachers')
   if (savedStudents) {
     students.value = JSON.parse(savedStudents)
     studentInput.value = students.value.map(s => `${s.name}\t${s.grade}`).join('\n')
-  }
-  if (savedTeachers) {
-    teachers.value = JSON.parse(savedTeachers)
-    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
   }
 })
 
@@ -38,73 +36,50 @@ watch(students, (newStudents) => {
   localStorage.setItem('students', JSON.stringify(newStudents))
 }, { deep: true })
 
-watch(teachers, (newTeachers) => {
-  localStorage.setItem('teachers', JSON.stringify(newTeachers))
-}, { deep: true })
-
-const importPeople = (type: 'student' | 'teacher') => {
-  const input = (type === 'student' ? studentInput.value : teacherInput.value)
+const importStudents = () => {
+  const input = studentInput.value
     .split('\n')
     .filter(line => line.trim() !== '')
   
-  const processedPeople = input.map(line => {
+  students.value = input.map(line => {
     const [name, grade] = line.split('\t');
     return {
       name: name.trim(),
-      type,
       grade: parseInt(grade.trim(), 10)
     };
   });
 
-  if (type === 'student') {
-    students.value = processedPeople
-    studentInput.value = students.value.map(s => `${s.name}\t${s.grade}`).join('\n')
-  } else {
-    teachers.value = processedPeople
-    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
-  }
+  studentInput.value = students.value.map(s => `${s.name}\t${s.grade}`).join('\n')
 }
 
 const generateTables = () => {
   const grades = [6, 7, 8]
-  const allRotations: Record<number, Record<number, Person[][]>> = {}
+  const allRotations: Record<number, Record<number, Student[][]>> = {}
 
   for (let rotation = 1; rotation <= numberOfRotations.value; rotation++) {
-    const allTables: Record<number, Person[][]> = {}
+    const allTables: Record<number, Student[][]> = {}
 
     grades.forEach(grade => {
       const gradeStudents = students.value.filter(s => s.grade === grade)
-      const gradeTeachers = teachers.value.filter(t => t.grade === grade)
 
-      if (gradeStudents.length === 0 || gradeTeachers.length === 0) {
+      if (gradeStudents.length === 0) {
         allTables[grade] = []
         return
       }
 
-      const gradeTables: Person[][] = Array.from({ length: numberOfTables.value }, () => [])
-
-      // Randomly assign teachers
-      const shuffledTeachers = [...gradeTeachers].sort(() => Math.random() - 0.5)
-      gradeTables.forEach((table, index) => {
-        if (index < shuffledTeachers.length) {
-          table.push(shuffledTeachers[index])
-        }
-      })
+      const numberOfTables = tablesPerGrade.value[grade]
+      const gradeTables: Student[][] = Array.from({ length: numberOfTables }, () => [])
 
       // Randomly assign students
       const shuffledStudents = [...gradeStudents].sort(() => Math.random() - 0.5)
       shuffledStudents.forEach((student, index) => {
-        gradeTables[index % numberOfTables.value].push(student)
+        gradeTables[index % numberOfTables].push(student)
       })
 
       // Sort students alphabetically within each table
-      allTables[grade] = gradeTables.map(table => {
-        const teacher = table.find(person => person.type === 'teacher')
-        const sortedStudents = table
-          .filter(person => person.type === 'student')
-          .sort((a, b) => a.name.localeCompare(b.name))
-        return teacher ? [teacher, ...sortedStudents] : sortedStudents
-      })
+      allTables[grade] = gradeTables.map(table => 
+        table.sort((a, b) => a.name.localeCompare(b.name))
+      )
     })
 
     allRotations[rotation] = allTables
@@ -115,17 +90,13 @@ const generateTables = () => {
 }
 
 const isGenerateDisabled = computed(() => {
-  const hasAllGrades = [6, 7, 8].every(grade => 
-    students.value.some(s => s.grade === grade) && 
-    teachers.value.some(t => t.grade === grade)
-  )
-  return !hasAllGrades || numberOfTables.value < 1
+  return !students.value.length || Object.values(tablesPerGrade.value).some(num => num < 1)
 })
 
-const draggedPerson = ref<Person | null>(null)
+const draggedStudent = ref<Student | null>(null)
 
-const onDragStart = (person: Person, grade: number, tableIndex: number) => {
-  draggedPerson.value = person
+const onDragStart = (student: Student, grade: number, tableIndex: number) => {
+  draggedStudent.value = student
 }
 
 const onDragOver = (event: DragEvent) => {
@@ -133,10 +104,10 @@ const onDragOver = (event: DragEvent) => {
 }
 
 const onDrop = (grade: number, targetTableIndex: number) => {
-  if (!draggedPerson.value) return
+  if (!draggedStudent.value) return
 
   const sourceTableIndex = tables.value[currentRotation.value][grade].findIndex(table => 
-    table.some(p => p.name === draggedPerson.value?.name && p.type === draggedPerson.value?.type)
+    table.some(s => s.name === draggedStudent.value?.name)
   )
 
   if (sourceTableIndex === -1) return
@@ -144,37 +115,39 @@ const onDrop = (grade: number, targetTableIndex: number) => {
   const sourceTable = tables.value[currentRotation.value][grade][sourceTableIndex]
   const targetTable = tables.value[currentRotation.value][grade][targetTableIndex]
 
-  const personIndex = sourceTable.findIndex(p => p.name === draggedPerson.value?.name && p.type === draggedPerson.value?.type)
-  const [movedPerson] = sourceTable.splice(personIndex, 1)
-  targetTable.push(movedPerson)
+  const studentIndex = sourceTable.findIndex(s => s.name === draggedStudent.value?.name)
+  const [movedStudent] = sourceTable.splice(studentIndex, 1)
+  targetTable.push(movedStudent)
 
   // Sort students alphabetically within the target table
-  const teacher = targetTable.find(person => person.type === 'teacher')
-  const sortedStudents = targetTable
-    .filter(person => person.type === 'student')
-    .sort((a, b) => a.name.localeCompare(b.name))
-  tables.value[currentRotation.value][grade][targetTableIndex] = teacher ? [teacher, ...sortedStudents] : sortedStudents
+  tables.value[currentRotation.value][grade][targetTableIndex] = targetTable.sort((a, b) => a.name.localeCompare(b.name))
 
-  draggedPerson.value = null
+  draggedStudent.value = null
 }
 
 const tableCards = computed(() => {
   const cards = []
   const grades = [6, 7, 8]
+  const maxTables = Math.max(...Object.values(tablesPerGrade.value))
   
-  for (let tableIndex = 0; tableIndex < numberOfTables.value; tableIndex++) {
+  for (let tableNumber = 1; tableNumber <= maxTables; tableNumber++) {
     const card = {
-      tableNumber: tableIndex + 1,
-      gradeAssignments: {} as Record<number, Person[]>
+      tableNumber,
+      grades: {} as Record<number, Student[]>
     }
-    
-    grades.forEach(grade => {
-      if (tables.value[currentRotation.value]?.[grade] && tables.value[currentRotation.value][grade][tableIndex]) {
-        card.gradeAssignments[grade] = tables.value[currentRotation.value][grade][tableIndex]
+
+    for (let grade of grades) {
+      if (tableNumber <= tablesPerGrade.value[grade as keyof typeof tablesPerGrade.value]) {
+        const students = tables.value[currentRotation.value]?.[grade]?.[tableNumber - 1] || []
+        if (students.length > 0) {
+          card.grades[grade] = students
+        }
       }
-    })
-    
-    cards.push(card)
+    }
+
+    if (Object.keys(card.grades).length > 0) {
+      cards.push(card)
+    }
   }
   
   return cards
@@ -191,13 +164,11 @@ const studentLists = computed(() => {
 
   Object.entries(tables.value[currentRotation.value]).forEach(([grade, gradeTables]) => {
     gradeTables.forEach((table, tableIndex) => {
-      table.forEach(person => {
-        if (person.type === 'student') {
-          lists[parseInt(grade)].push({
-            name: person.name,
-            tableNumber: tableIndex + 1
-          })
-        }
+      table.forEach(student => {
+        lists[parseInt(grade)].push({
+          name: student.name,
+          tableNumber: tableIndex + 1
+        })
       })
     })
   })
@@ -210,16 +181,10 @@ const studentLists = computed(() => {
   return lists
 })
 
-const resetList = (type: 'student' | 'teacher') => {
-  if (type === 'student') {
-    students.value = []
-    studentInput.value = ''
-    localStorage.removeItem('students')
-  } else {
-    teachers.value = []
-    teacherInput.value = ''
-    localStorage.removeItem('teachers')
-  }
+const resetStudents = () => {
+  students.value = []
+  studentInput.value = ''
+  localStorage.removeItem('students')
 }
 
 const printTableCards = () => {
@@ -268,27 +233,17 @@ const printStudentLists = () => {
           <textarea v-model="studentInput" rows="5" cols="30" placeholder="John Doe&#9;9"></textarea>
         </label>
         <div>
-          <button @click="importPeople('student')">Import Students</button>
-          <button @click="resetList('student')" class="reset-button">Reset Students</button>
-        </div>
-      </div>
-      <div>
-        <label>
-          Teachers (name and grade, tab-separated, one per line):
-          <textarea v-model="teacherInput" rows="5" cols="30" placeholder="Jane Smith&#9;10"></textarea>
-        </label>
-        <div>
-          <button @click="importPeople('teacher')">Import Teachers</button>
-          <button @click="resetList('teacher')" class="reset-button">Reset Teachers</button>
+          <button @click="importStudents">Import Students</button>
+          <button @click="resetStudents" class="reset-button">Reset Students</button>
         </div>
       </div>
     </div>
 
     <div v-if="activeTab === 'assignments'">
       <div>
-        <label>
-          Number of Tables:
-          <input type="number" v-model="numberOfTables" min="1">
+        <label v-for="grade in [6, 7, 8]" :key="grade">
+          Number of Tables for Grade {{ grade }}:
+          <input type="number" v-model="tablesPerGrade[grade]" min="1">
         </label>
       </div>
       <div>
@@ -314,13 +269,12 @@ const printStudentLists = () => {
               <h4>Table {{ index + 1 }}</h4>
               <ul>
                 <li 
-                  v-for="person in table" 
-                  :key="person.name"
+                  v-for="student in table" 
+                  :key="student.name"
                   draggable="true"
-                  @dragstart="onDragStart(person, grade, index)"
+                  @dragstart="onDragStart(student, grade, index)"
                 >
-                  <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
-                  <span v-else>{{ person.name }}</span>
+                  {{ student.name }}
                 </li>
               </ul>
             </div>
@@ -331,20 +285,21 @@ const printStudentLists = () => {
     </div>
 
     <div v-if="activeTab === 'cards'">
-      <h2 class="no-print">Table Cards</h2>
+      <h2 class="no-print">Table Cards - Rotation {{ currentRotation }}</h2>
       <button @click="printTableCards" class="print-button no-print">Print Table Cards</button>
       <div class="table-cards-container">
         <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
           <h3 class="table-number">Table {{ card.tableNumber }}</h3>
           <div class="grades-row">
             <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list">
-              <h4>Grade {{ grade }}</h4>
-              <ul>
-                <li v-for="person in card.gradeAssignments[grade]" :key="person.name">
-                  <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
-                  <span v-else>{{ person.name }}</span>
-                </li>
-              </ul>
+              <template v-if="card.grades[grade]">
+                <h5>Grade {{ grade }}</h5>
+                <ul>
+                  <li v-for="student in card.grades[grade]" :key="student.name">
+                    {{ student.name }}
+                  </li>
+                </ul>
+              </template>
             </div>
           </div>
         </div>
@@ -463,6 +418,23 @@ li:hover {
   page-break-inside: avoid;
   display: flex;
   flex-direction: column;
+  position: relative; /* Add this */
+  overflow: hidden; /* Add this */
+}
+
+.table-card-print::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.1;
+  z-index: -1;
 }
 
 .table-number {
@@ -482,6 +454,7 @@ li:hover {
   margin: 0 0.25rem;
   border-left: 1px solid #ccc;
   padding-left: 0.5rem;
+  min-width: 33%; /* Ensure each grade takes up at least a third of the space */
 }
 
 .grade-list:first-child {
@@ -489,7 +462,7 @@ li:hover {
   padding-left: 0;
 }
 
-.grade-list h4 {
+.grade-list h5 {
   font-size: 16px; /* Reduced font size */
   margin-top: 0;
   margin-bottom: 0.25rem;
@@ -562,6 +535,11 @@ li:hover {
     height: 100vh;
     padding: 0.5in; /* Add some padding around the edges */
     box-sizing: border-box;
+  }
+
+  .table-card-print::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 
