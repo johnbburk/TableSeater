@@ -485,14 +485,14 @@ li:hover {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  opacity: 0.1;
+  opacity: 0.2;
   z-index: -1;
 }
 
 .table-number {
-  font-size: 20px; /* Reduced font size */
+  font-size: 30px; /* Reduced font size */
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 2rem;
 }
 
 .grades-row {
@@ -504,7 +504,6 @@ li:hover {
 .grade-list {
   flex: 1;
   margin: 0 0.25rem;
-  border-left: 1px solid #ccc;
   padding-left: 0.5rem;
   min-width: 33%; /* Ensure each grade takes up at least a third of the space */
 }
@@ -515,7 +514,7 @@ li:hover {
 }
 
 .grade-list h5 {
-  font-size: 16px; /* Reduced font size */
+  font-size: 20px; /* Reduced font size */
   margin-top: 0;
   margin-bottom: 0.25rem;
   text-align: center;
@@ -523,14 +522,15 @@ li:hover {
 
 .grade-list ul {
   margin: 0;
-  padding-left: 0.5rem;
-  font-size: 12px; /* Reduced font size */
+  padding-left: 0.2rem;
 }
 
 .grade-list li {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  font-size: 16px;
+  word-wrap: break-word; 
+  overflow-wrap: break-word; 
+  
 }
 
 @media print {
