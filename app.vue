@@ -114,17 +114,17 @@
               <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
                 <h3 class="table-number">Table {{ card.tableNumber }}</h3>
                 <div class="grades-row">
-                  <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list">
-                    <template v-if="card.grades[grade]">
+                  <template v-for="grade in [6, 7, 8]" :key="grade">
+                    <div v-if="card.grades && card.grades[grade] && card.grades[grade].length > 0" class="grade-list">
                       <h5>Grade {{ grade }}</h5>
                       <ul>
-                        <li v-for="person in card.grades[grade]" :key="person.name">
+                        <li v-for="(person, index) in card.grades[grade]" :key="index">
                           <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
                           <span v-else>{{ person.name }}</span>
                         </li>
                       </ul>
-                    </template>
-                  </div>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -488,7 +488,7 @@ li:hover {
 
 .table-card-print {
   width: 5.5in;
-  height: 4.25in; /* Changed to half of 8.5in */
+  height: 4.25in;
   border: 1px solid #000;
   margin: 0.125in;
   padding: 0.25in;
@@ -496,8 +496,8 @@ li:hover {
   page-break-inside: avoid;
   display: flex;
   flex-direction: column;
-  position: relative; /* Add this */
-  overflow: hidden; /* Add this */
+  position: relative;
+  overflow: hidden; /* Add this to ensure the pseudo-element is contained */
 }
 
 .table-card-print::before {
@@ -507,12 +507,12 @@ li:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('/logo.png');
+  background-image: url('/logo.png'); /* Ensure this path is correct */
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   opacity: 0.2;
-  z-index: -1;
+  pointer-events: none;
 }
 
 .table-number {
@@ -523,15 +523,36 @@ li:hover {
 
 .grades-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   flex-grow: 1;
+  gap: 1rem;
+  width: 100%;
 }
 
 .grade-list {
-  flex: 1;
-  margin: 0 0.25rem;
-  padding-left: 0.5rem;
-  min-width: 33%; /* Ensure each grade takes up at least a third of the space */
+  flex: 0 1 30%; /* Don't grow, allow shrinking, 30% basis */
+  max-width: 30%; /* Maximum width of 30% */
+  min-width: 0; /* Allow shrinking below content size */
+}
+
+/* Center single grade */
+.grades-row:only-child {
+  justify-content: center;
+}
+
+.grades-row:only-child .grade-list {
+  flex-basis: 60%;
+  max-width: 60%;
+}
+
+/* Center two grades */
+.grades-row:nth-last-child(2):first-child {
+  justify-content: space-around;
+}
+
+.grades-row:nth-last-child(2):first-child .grade-list {
+  flex-basis: 45%;
+  max-width: 45%;
 }
 
 .grade-list:first-child {
@@ -548,15 +569,16 @@ li:hover {
 
 .grade-list ul {
   margin: 0;
-  padding-left: 0.2rem;
+  padding-left: 1rem; /* Add some left padding for the list */
+  list-style-type: none; /* Remove default list styling */
 }
 
 .grade-list li {
   white-space: normal;
-  font-size: 16px;
-  word-wrap: break-word; 
-  overflow-wrap: break-word; 
-  
+  font-size: 14px; /* Slightly reduced font size */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  margin-bottom: 0.25rem; /* Add some space between list items */
 }
 
 @media print {
@@ -631,6 +653,27 @@ li:hover {
   .table-card-print::before {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .grade-list {
+    flex: 0 1 30%;
+    max-width: 30%;
+  }
+
+  /* Center single grade in print */
+  .grades-row:only-child .grade-list {
+    flex-basis: 60%;
+    max-width: 60%;
+  }
+
+  /* Center two grades in print */
+  .grades-row:nth-last-child(2):first-child .grade-list {
+    flex-basis: 45%;
+    max-width: 45%;
+  }
+
+  .grade-list li {
+    font-size: 12px; /* Further reduce font size for print */
   }
 }
 
