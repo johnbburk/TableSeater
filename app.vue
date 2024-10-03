@@ -382,10 +382,14 @@ const resetList = (type: 'student' | 'teacher') => {
 
 const printTableCards = () => {
   printMode.value = true
+  document.body.classList.add('print-table-cards')
   setTimeout(() => {
     window.print()
-    printMode.value = false
-  }, 100)
+    setTimeout(() => {
+      printMode.value = false
+      document.body.classList.remove('print-table-cards')
+    }, 500)
+  }, 500)
 }
 
 const printStudentLists = () => {
@@ -484,20 +488,21 @@ li:hover {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-around;
+  gap: 20px;
 }
 
 .table-card-print {
-  width: 5.5in;
-  height: 4.25in;
+  width: 7.5in;
+  height: 4.5in;
   border: 1px solid #000;
-  margin: 0.125in;
+  margin: 0;
   padding: 0.25in;
   box-sizing: border-box;
   page-break-inside: avoid;
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden; /* Add this to ensure the pseudo-element is contained */
+  overflow: hidden;
 }
 
 .table-card-print::before {
@@ -516,9 +521,9 @@ li:hover {
 }
 
 .table-number {
-  font-size: 30px; /* Reduced font size */
+  font-size: 24px;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .grades-row {
@@ -561,7 +566,7 @@ li:hover {
 }
 
 .grade-list h5 {
-  font-size: 20px; /* Reduced font size */
+  font-size: 18px;
   margin-top: 0;
   margin-bottom: 0.25rem;
   text-align: center;
@@ -574,43 +579,150 @@ li:hover {
 }
 
 .grade-list li {
-  white-space: normal;
-  font-size: 14px; /* Slightly reduced font size */
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  margin-bottom: 0.25rem; /* Add some space between list items */
+  font-size: 16px;
+  margin-bottom: 0.15rem;
 }
 
 @media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .print-content {
-    visibility: visible;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+  @page {
+    size: letter portrait;
+    margin: 0.5in;
   }
 
-  .table-cards-container, .student-lists-container {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .table-cards-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5in;
+  }
+
+  .table-card-print {
+    width: 7.5in;
+    height: 5in;
+    border: 1px solid #000;
+    padding: 0.25in;
+    box-sizing: border-box;
+    page-break-inside: avoid;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .table-card-print:last-child {
+    page-break-after: auto;
+  }
+
+  .table-number {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 0.3rem;
+  }
+
+  .grades-row {
+    display: flex;
+    justify-content: space-around;
+    flex-grow: 1;
+  }
+
+  .grade-list {
+    flex: 1;
+    max-width: 30%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .grade-list h5 {
+    font-size: 18px;
+    margin: 0 0 0.2rem 0;
+    text-align: center;
+  }
+
+  .grade-list ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+  }
+
+  .grade-list li {
+    font-size: 12px;
+    margin-bottom: 0.1rem;
+  }
+
+  .v-application {
+    background: none !important;
+  }
+
+  .v-main {
+    padding: 0 !important;
+  }
+
+  .v-container {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .no-print, .v-btn, h1, h2 {
+    display: none !important;
+  }
+
+  .print-content {
     visibility: visible;
+    position: static;
+    left: auto;
+    top: auto;
+    width: auto;
+    height: auto;
+    padding: 0;
   }
 
   .table-cards-container {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8cm; /* Add gap between cards */
   }
 
   .table-card-print {
     page-break-inside: avoid;
-    break-inside: avoid;
+    margin: 0;
+    padding: 0.25in;
+    border: 1px solid #000;
+    height: calc(5in - 0.4cm); /* Adjust height to account for gap */
+    width: 7.5in;
+    box-sizing: border-box;
   }
+
+  .table-card-print:nth-child(odd) {
+    page-break-after: avoid;
+  }
+
+  .table-card-print:nth-child(even) {
+    page-break-after: always;
+  }
+
+  /* Remove these pseudo-elements */
+  /*
+  .table-cards-container::before,
+  .table-cards-container::after {
+    content: '';
+    display: block;
+    height: 0.4cm;
+    page-break-before: always;
+  }
+  */
 
   .student-lists-container {
     display: flex;
-    font-size: 8pt; /* Even smaller font for print */
+    font-size: 16pt; /* Even smaller font for print */
     line-height: 1.1; /* Tighter line height for print */
   }
 
@@ -626,7 +738,7 @@ li:hover {
   }
 
   .grade-list-print h3 {
-    font-size: 10pt; /* Smaller heading for print */
+    font-size: 20pt; /* Smaller heading for print */
   }
 
   .student-list {
@@ -673,13 +785,13 @@ li:hover {
   }
 
   .grade-list li {
-    font-size: 12px; /* Further reduce font size for print */
+    font-size: 16px;
   }
 }
 
 .student-lists-container {
   display: flex;
-  font-size: 10px; /* Reduced font size */
+  font-size: 16px; /* Reduced font size */
   line-height: 1.2; /* Tightened line height */
 }
 
@@ -692,7 +804,7 @@ li:hover {
 }
 
 .grade-list-print h3 {
-  font-size: 14px; /* Reduced heading size */
+  font-size: 18px; /* Reduced heading size */
   margin-bottom: 0.5rem; /* Reduced margin */
 }
 
