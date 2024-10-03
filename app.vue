@@ -586,7 +586,7 @@ li:hover {
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.5in;
+    margin: 0;
   }
 
   body {
@@ -598,7 +598,7 @@ li:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5in;
+    gap: 0;
   }
 
   .table-card-print {
@@ -606,12 +606,17 @@ li:hover {
     height: 5in;
     border: 1px solid #000;
     padding: 0.25in;
+    margin: 0.5in 0.5in 0 0.5in; /* Top Right Bottom Left */
     box-sizing: border-box;
     page-break-inside: avoid;
     page-break-after: always;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .table-card-print:nth-child(even) {
+    margin-top: 0;
   }
 
   .table-card-print:last-child {
