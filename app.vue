@@ -1,3 +1,156 @@
+<template>
+  <v-app>
+    <v-main>
+      <v-container fluid class="pa-4">
+        <div :class="{ 'print-content': printMode }">
+          <div class="no-print">
+            <h1>Table Assignment Generator</h1>
+            
+            <div class="rotation-selector" v-if="Object.keys(tables).length">
+              <v-select
+                v-model="currentRotation"
+                :items="rotationItems"
+                label="Select Rotation"
+                dense
+              ></v-select>
+            </div>
+
+            <div class="tabs">
+              <v-btn @click="activeTab = 'rosters'" :class="{ active: activeTab === 'rosters' }">Rosters</v-btn>
+              <v-btn @click="activeTab = 'assignments'" :class="{ active: activeTab === 'assignments' }">Table Assignments</v-btn>
+              <v-btn @click="activeTab = 'cards'" :class="{ active: activeTab === 'cards' }">Table Cards</v-btn>
+              <v-btn @click="activeTab = 'studentLists'" :class="{ active: activeTab === 'studentLists' }">Student Lists</v-btn>
+            </div>
+          </div>
+
+          <div v-if="activeTab === 'rosters'">
+            <v-card class="mb-4">
+              <v-card-text>
+                <v-textarea
+                  v-model="studentInput"
+                  label="Students (name and grade, tab-separated, one per line)"
+                  rows="5"
+                  placeholder="John Doe&#9;9"
+                ></v-textarea>
+              </v-card-text>
+              <v-card-actions>
+                <v-btn @click="importPeople('student')" color="primary">Import Students</v-btn>
+                <v-btn @click="resetList('student')" color="error">Reset Students</v-btn>
+              </v-card-actions>
+            </v-card>
+
+            <v-card>
+              <v-card-text>
+                <v-textarea
+                  v-model="teacherInput"
+                  label="Teachers (name and grade, tab-separated, one per line)"
+                  rows="5"
+                  placeholder="Jane Smith&#9;10"
+                ></v-textarea>
+              </v-card-text>
+              <v-card-actions>
+                <v-btn @click="importPeople('teacher')" color="primary">Import Teachers</v-btn>
+                <v-btn @click="resetList('teacher')" color="error">Reset Teachers</v-btn>
+              </v-card-actions>
+            </v-card>
+          </div>
+
+          <div v-if="activeTab === 'assignments'">
+            <div>
+              <v-text-field
+                v-for="grade in [6, 7, 8]"
+                :key="grade"
+                v-model="tablesPerGrade[grade]"
+                type="number"
+                :label="`Number of Tables for Grade ${grade}`"
+                min="1"
+              ></v-text-field>
+            </div>
+            <div>
+              <v-text-field
+                v-model="numberOfRotations"
+                type="number"
+                label="Number of Rotations"
+                min="1"
+              ></v-text-field>
+            </div>
+            <v-btn @click="generateTables" :disabled="isGenerateDisabled" color="primary">Generate Tables</v-btn>
+            
+            <div v-if="Object.keys(tables).length">
+              <h2>Generated Tables - Rotation {{ currentRotation }}</h2>
+              <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-section">
+                <h3>Grade {{ grade }}</h3>
+                <div class="tables-grid">
+                  <div 
+                    v-for="(table, index) in tables[currentRotation][grade]" 
+                    :key="`${grade}-${index}`" 
+                    class="table-card"
+                    @dragover="onDragOver"
+                    @drop="onDrop(grade, index)"
+                  >
+                    <h4>Table {{ index + 1 }}</h4>
+                    <ul>
+                      <li 
+                        v-for="person in table" 
+                        :key="person.name"
+                        draggable="true"
+                        @dragstart="onDragStart(person, grade, index)"
+                      >
+                        <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
+                        <span v-else>{{ person.name }}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <hr v-if="grade !== 8" class="grade-separator">
+              </div>
+            </div>
+          </div>
+
+          <div v-if="activeTab === 'cards'">
+            <h2 class="no-print">Table Cards - Rotation {{ currentRotation }}</h2>
+            <v-btn @click="printTableCards" color="primary" class="print-button no-print">Print Table Cards</v-btn>
+            <div class="table-cards-container">
+              <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
+                <h3 class="table-number">Table {{ card.tableNumber }}</h3>
+                <div class="grades-row">
+                  <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list">
+                    <template v-if="card.grades[grade]">
+                      <h5>Grade {{ grade }}</h5>
+                      <ul>
+                        <li v-for="person in card.grades[grade]" :key="person.name">
+                          <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
+                          <span v-else>{{ person.name }}</span>
+                        </li>
+                      </ul>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="activeTab === 'studentLists'">
+            <h2 class="no-print">Student Lists</h2>
+            <v-btn @click="printStudentLists" color="primary" class="print-button no-print">Print Student Lists</v-btn>
+            <div class="student-lists-container">
+              <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list-print">
+                <h3>Grade {{ grade }}</h3>
+                <div class="student-list">
+                  <div v-for="student in studentLists[grade]" :key="student.name" class="student-item">
+                    {{ student.name }} - ({{ student.tableNumber }})
+                  </div>
+                </div>
+                <hr v-if="grade !== 8" class="grade-separator">
+              </div>
+            </div>
+          </div>
+        </div>
+      </v-container>
+    </v-main>
+  </v-app>
+</template>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 
@@ -242,139 +395,14 @@ const printStudentLists = () => {
     printMode.value = false
   }, 100)
 }
+
+const rotationItems = computed(() => 
+  Array.from({length: numberOfRotations.value}, (_, i) => ({
+    title: `Rotation ${i + 1}`,
+    value: i + 1
+  }))
+)
 </script>
-
-<template>
-  <div :class="{ 'print-content': printMode }">
-    <div class="no-print">
-      <h1>Table Assignment Generator</h1>
-      
-      <div class="rotation-selector" v-if="Object.keys(tables).length">
-        <label for="rotation-select">Select Rotation:</label>
-        <select id="rotation-select" v-model="currentRotation">
-          <option v-for="rotation in numberOfRotations" :key="rotation" :value="rotation">
-            Rotation {{ rotation }}
-          </option>
-        </select>
-      </div>
-
-      <div class="tabs">
-        <button @click="activeTab = 'rosters'" :class="{ active: activeTab === 'rosters' }">Rosters</button>
-        <button @click="activeTab = 'assignments'" :class="{ active: activeTab === 'assignments' }">Table Assignments</button>
-        <button @click="activeTab = 'cards'" :class="{ active: activeTab === 'cards' }">Table Cards</button>
-        <button @click="activeTab = 'studentLists'" :class="{ active: activeTab === 'studentLists' }">Student Lists</button>
-      </div>
-    </div>
-
-    <div v-if="activeTab === 'rosters'">
-      <div>
-        <label>
-          Students (name and grade, tab-separated, one per line):
-          <textarea v-model="studentInput" rows="5" cols="30" placeholder="John Doe&#9;9"></textarea>
-        </label>
-        <div>
-          <button @click="importPeople('student')">Import Students</button>
-          <button @click="resetList('student')" class="reset-button">Reset Students</button>
-        </div>
-      </div>
-      <div>
-        <label>
-          Teachers (name and grade, tab-separated, one per line):
-          <textarea v-model="teacherInput" rows="5" cols="30" placeholder="Jane Smith&#9;10"></textarea>
-        </label>
-        <div>
-          <button @click="importPeople('teacher')">Import Teachers</button>
-          <button @click="resetList('teacher')" class="reset-button">Reset Teachers</button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="activeTab === 'assignments'">
-      <div>
-        <label v-for="grade in [6, 7, 8]" :key="grade">
-          Number of Tables for Grade {{ grade }}:
-          <input type="number" v-model="tablesPerGrade[grade]" min="1">
-        </label>
-      </div>
-      <div>
-        <label>
-          Number of Rotations:
-          <input type="number" v-model="numberOfRotations" min="1">
-        </label>
-      </div>
-      <button @click="generateTables" :disabled="isGenerateDisabled">Generate Tables</button>
-      
-      <div v-if="Object.keys(tables).length">
-        <h2>Generated Tables - Rotation {{ currentRotation }}</h2>
-        <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-section">
-          <h3>Grade {{ grade }}</h3>
-          <div class="tables-grid">
-            <div 
-              v-for="(table, index) in tables[currentRotation][grade]" 
-              :key="`${grade}-${index}`" 
-              class="table-card"
-              @dragover="onDragOver"
-              @drop="onDrop(grade, index)"
-            >
-              <h4>Table {{ index + 1 }}</h4>
-              <ul>
-                <li 
-                  v-for="person in table" 
-                  :key="person.name"
-                  draggable="true"
-                  @dragstart="onDragStart(person, grade, index)"
-                >
-                  <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
-                  <span v-else>{{ person.name }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-          <hr v-if="grade !== 8" class="grade-separator">
-        </div>
-      </div>
-    </div>
-
-    <div v-if="activeTab === 'cards'">
-      <h2 class="no-print">Table Cards - Rotation {{ currentRotation }}</h2>
-      <button @click="printTableCards" class="print-button no-print">Print Table Cards</button>
-      <div class="table-cards-container">
-        <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
-          <h3 class="table-number">Table {{ card.tableNumber }}</h3>
-          <div class="grades-row">
-            <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list">
-              <template v-if="card.grades[grade]">
-                <h5>Grade {{ grade }}</h5>
-                <ul>
-                  <li v-for="person in card.grades[grade]" :key="person.name">
-                    <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
-                    <span v-else>{{ person.name }}</span>
-                  </li>
-                </ul>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="activeTab === 'studentLists'">
-      <h2 class="no-print">Student Lists</h2>
-      <button @click="printStudentLists" class="print-button no-print">Print Student Lists</button>
-      <div class="student-lists-container">
-        <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list-print">
-          <h3>Grade {{ grade }}</h3>
-          <div class="student-list">
-            <div v-for="student in studentLists[grade]" :key="student.name" class="student-item">
-              {{ student.name }} - ({{ student.tableNumber }})
-            </div>
-          </div>
-          <hr v-if="grade !== 8" class="grade-separator">
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 div {
@@ -397,22 +425,19 @@ textarea {
 }
 .tabs {
   display: flex;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
-.tabs button {
-  padding: 0.5rem 1rem;
-  margin-right: 0.5rem;
-  border: 1px solid #ccc;
-  background-color: #f0f0f0;
-  cursor: pointer;
-}
-.tabs button.active {
-  background-color: #fff;
-  border-bottom: none;
+.tabs .v-btn {
+  margin-right: 8px;
+  margin-bottom: 8px;
 }
 
 .grade-section {
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
 }
 
 .tables-grid {
@@ -424,7 +449,8 @@ textarea {
 .table-card {
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
   min-height: 100px; /* Add this to ensure empty tables have a drop area */
 }
 
@@ -655,15 +681,8 @@ li:hover {
 }
 
 .rotation-selector {
-  margin-bottom: 1rem;
-}
-
-.rotation-selector label {
-  margin-right: 0.5rem;
-}
-
-.rotation-selector select {
-  padding: 0.25rem;
+  max-width: 200px;
+  margin-bottom: 2rem;
 }
 
 .print-button {
@@ -678,4 +697,16 @@ li:hover {
 .print-button:hover {
   background-color: #45a049;
 }
+
+.v-main {
+  background-color: #f5f5f5; /* Light grey background for the entire app */
+}
+
+.v-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* You may need to adjust other styles to fit Vuetify's design */
 </style>
