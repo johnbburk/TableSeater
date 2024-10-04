@@ -109,10 +109,18 @@
 
           <div v-if="activeTab === 'cards'">
             <h2 class="no-print">Table Cards - Rotation {{ currentRotation }}</h2>
+            
+            <v-text-field
+              v-model="tableCardNote"
+              label="Table Card Note"
+              class="no-print"
+            ></v-text-field>
+            
             <v-btn @click="printTableCards" color="primary" class="print-button no-print">Print Table Cards</v-btn>
             <div class="table-cards-container">
               <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
                 <h3 class="table-number">Table {{ card.tableNumber }}</h3>
+                <p v-if="tableCardNote" class="table-card-note">{{ tableCardNote }}</p>
                 <div class="grades-row">
                   <template v-for="grade in [6, 7, 8]" :key="grade">
                     <div v-if="card.grades && card.grades[grade] && card.grades[grade].length > 0" class="grade-list">
@@ -178,6 +186,8 @@ const tablesPerGrade = ref({
   8: 10
 })
 
+const tableCardNote = ref('')
+
 // Load data from local storage on component mount
 onMounted(() => {
   const savedStudents = localStorage.getItem('students')
@@ -190,6 +200,10 @@ onMounted(() => {
     teachers.value = JSON.parse(savedTeachers)
     teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
   }
+  const savedNote = localStorage.getItem('tableCardNote')
+  if (savedNote) {
+    tableCardNote.value = savedNote
+  }
 })
 
 // Save data to local storage when it changes
@@ -200,6 +214,11 @@ watch(students, (newStudents) => {
 watch(teachers, (newTeachers) => {
   localStorage.setItem('teachers', JSON.stringify(newTeachers))
 }, { deep: true })
+
+// Add this to save the note to local storage
+watch(tableCardNote, (newNote) => {
+  localStorage.setItem('tableCardNote', newNote)
+})
 
 const importPeople = (type: 'student' | 'teacher') => {
   const input = (type === 'student' ? studentInput.value : teacherInput.value)
@@ -869,4 +888,21 @@ li:hover {
 }
 
 /* You may need to adjust other styles to fit Vuetify's design */
+
+.table-card-note {
+  text-align: center;
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+@media print {
+  /* ... existing print styles ... */
+
+  .table-card-note {
+    font-size: 14px;
+    margin-bottom: 0.3rem;
+  }
+
+  /* ... rest of the print styles ... */
+}
 </style>
