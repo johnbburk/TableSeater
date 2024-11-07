@@ -30,11 +30,12 @@
                   v-model="studentInput"
                   label="Students (name and grade, tab-separated, one per line)"
                   rows="5"
-                  placeholder="John Doe&#9;9"
+                  placeholder="Last Name, First Name&#9;9"
                 ></v-textarea>
               </v-card-text>
               <v-card-actions>
                 <v-btn @click="importPeople('student')" color="primary">Import Students</v-btn>
+                <v-btn @click="loadDemoStudents" color="secondary">Load Demo Students</v-btn>
                 <v-btn @click="resetList('student')" color="error">Reset Students</v-btn>
               </v-card-actions>
             </v-card>
@@ -45,11 +46,12 @@
                   v-model="teacherInput"
                   label="Teachers (name and grade, tab-separated, one per line)"
                   rows="5"
-                  placeholder="Jane Smith&#9;10"
+                  placeholder="Last Name, First Name&#9;10"
                 ></v-textarea>
               </v-card-text>
               <v-card-actions>
                 <v-btn @click="importPeople('teacher')" color="primary">Import Teachers</v-btn>
+                <v-btn @click="loadDemoTeachers" color="secondary">Load Demo Teachers</v-btn>
                 <v-btn @click="resetList('teacher')" color="error">Reset Teachers</v-btn>
               </v-card-actions>
             </v-card>
@@ -260,25 +262,38 @@ watch(tableCardNote, (newNote) => {
   localStorage.setItem('tableCardNote', newNote)
 })
 
-const importPeople = (type: 'student' | 'teacher') => {
-  const input = (type === 'student' ? studentInput.value : teacherInput.value)
+// Add this function to load demo students
+const loadDemoStudents = async () => {
+  try {
+    const response = await fetch('demoStudents.csv')
+    const text = await response.text()
+    studentInput.value = text
+  } catch (error) {
+    console.error('Error loading demo students:', error)
+  }
+}
+
+// Modify the importPeople function
+const importPeople = async (type: 'student' | 'teacher') => {
+  const input = type === 'student' ? studentInput.value : teacherInput.value
+  
+  const people = input
     .split('\n')
     .filter(line => line.trim() !== '')
-  
-  const processedPeople = input.map(line => {
-    const [name, grade] = line.split('\t');
-    return {
-      name: name.trim(),
-      type,
-      grade: parseInt(grade.trim(), 10)
-    };
-  });
+    .map(line => {
+      const [name, grade] = line.split('\t')
+      return {
+        name: name.trim(),
+        type,
+        grade: parseInt(grade?.trim() || '0', 10)
+      }
+    })
 
   if (type === 'student') {
-    students.value = processedPeople
+    students.value = people
     studentInput.value = students.value.map(s => `${s.name}\t${s.grade}`).join('\n')
   } else {
-    teachers.value = processedPeople
+    teachers.value = people
     teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
   }
 }
@@ -525,6 +540,16 @@ const rotationItems = computed(() =>
     value: i + 1
   }))
 )
+
+const loadDemoTeachers = async () => {
+  try {
+    const response = await fetch('demoTeachers.csv')
+    const text = await response.text()
+    teacherInput.value = text
+  } catch (error) {
+    console.error('Error loading demo teachers:', error)
+  }
+}
 </script>
 
 <style scoped>
