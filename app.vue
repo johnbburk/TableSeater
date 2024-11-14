@@ -44,9 +44,9 @@
               <v-card-text>
                 <v-textarea
                   v-model="teacherInput"
-                  label="Teachers (name and grade, tab-separated, one per line)"
+                  label="Teachers (name, grade, and optional table number, tab-separated, one per line)"
                   rows="5"
-                  placeholder="Last Name, First Name&#9;10"
+                  placeholder="Last Name, First Name&#9;10&#9;1"
                 ></v-textarea>
               </v-card-text>
               <v-card-actions>
@@ -204,6 +204,7 @@ interface Person {
   name: string
   type: 'student' | 'teacher'
   grade: number
+  tableNumber?: number // Add optional tableNumber property
 }
 
 const students = ref<Person[]>([])
@@ -240,7 +241,7 @@ onMounted(() => {
   }
   if (savedTeachers) {
     teachers.value = JSON.parse(savedTeachers)
-    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
+    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}${t.tableNumber ? '\t' + t.tableNumber : ''}`).join('\n')
   }
   const savedNote = localStorage.getItem('tableCardNote')
   if (savedNote) {
@@ -281,12 +282,19 @@ const importPeople = async (type: 'student' | 'teacher') => {
     .split('\n')
     .filter(line => line.trim() !== '')
     .map(line => {
-      const [name, grade] = line.split('\t')
-      return {
-        name: name.trim(),
+      const parts = line.split('\t')
+      const person: Person = {
+        name: parts[0].trim(),
         type,
-        grade: parseInt(grade?.trim() || '0', 10)
+        grade: parseInt(parts[1]?.trim() || '0', 10)
       }
+      
+      // Add tableNumber for teachers if provided
+      if (type === 'teacher' && parts.length > 2) {
+        person.tableNumber = parseInt(parts[2]?.trim() || '0', 10)
+      }
+      
+      return person
     })
 
   if (type === 'student') {
@@ -294,7 +302,7 @@ const importPeople = async (type: 'student' | 'teacher') => {
     studentInput.value = students.value.map(s => `${s.name}\t${s.grade}`).join('\n')
   } else {
     teachers.value = people
-    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}`).join('\n')
+    teacherInput.value = teachers.value.map(t => `${t.name}\t${t.grade}${t.tableNumber ? '\t' + t.tableNumber : ''}`).join('\n')
   }
 }
 
@@ -318,9 +326,16 @@ const generateTables = () => {
       
       allTables[0] = Array.from({ length: totalTables.value }, () => [])
 
-      // Distribute teachers first (not randomized)
-      allTeachers.forEach((teacher, index) => {
-        allTables[0][index % totalTables.value].push(teacher)
+      // Distribute teachers based on tableNumber if specified
+      allTeachers.forEach((teacher) => {
+        if (teacher.tableNumber && teacher.tableNumber <= totalTables.value) {
+          allTables[0][teacher.tableNumber - 1].push(teacher)
+        } else {
+          const index = allTables[0].findIndex(table => !table.some(p => p.type === 'teacher'))
+          if (index >= 0) {
+            allTables[0][index].push(teacher)
+          }
+        }
       })
 
       // Distribute students by grade (8th, then 7th, then 6th)
@@ -357,9 +372,16 @@ const generateTables = () => {
         const numberOfTables = tablesPerGrade.value[grade as keyof typeof tablesPerGrade.value]
         const gradeTables: Person[][] = Array.from({ length: numberOfTables }, () => [])
 
-        // Distribute teachers
-        gradeTeachers.forEach((teacher, index) => {
-          gradeTables[index % numberOfTables].push(teacher)
+        // Distribute teachers based on tableNumber if specified
+        gradeTeachers.forEach((teacher) => {
+          if (teacher.tableNumber && teacher.tableNumber <= numberOfTables) {
+            gradeTables[teacher.tableNumber - 1].push(teacher)
+          } else {
+            const index = gradeTables.findIndex(table => !table.some(p => p.type === 'teacher'))
+            if (index >= 0) {
+              gradeTables[index].push(teacher)
+            }
+          }
         })
 
         // Randomly distribute students
