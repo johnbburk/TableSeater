@@ -309,18 +309,30 @@ const generateTables = () => {
 
     if (seatingMode.value === 'whole') {
       // Whole School Seating logic
-      const allTeachers = teachers.value.sort(() => Math.random() - 0.5)
-      const allStudents = students.value.sort((a, b) => b.grade - a.grade || a.name.localeCompare(b.name))
+      const allTeachers = [...teachers.value]
+      
+      // Create arrays for each grade and randomize them
+      const grade8Students = [...students.value.filter(s => s.grade === 8)].sort(() => Math.random() - 0.5)
+      const grade7Students = [...students.value.filter(s => s.grade === 7)].sort(() => Math.random() - 0.5)
+      const grade6Students = [...students.value.filter(s => s.grade === 6)].sort(() => Math.random() - 0.5)
       
       allTables[0] = Array.from({ length: totalTables.value }, () => [])
 
-      // Distribute teachers
+      // Distribute teachers first (not randomized)
       allTeachers.forEach((teacher, index) => {
         allTables[0][index % totalTables.value].push(teacher)
       })
 
-      // Distribute students
-      allStudents.forEach((student, index) => {
+      // Distribute students by grade (8th, then 7th, then 6th)
+      grade8Students.forEach((student, index) => {
+        allTables[0][index % totalTables.value].push(student)
+      })
+      
+      grade7Students.forEach((student, index) => {
+        allTables[0][index % totalTables.value].push(student)
+      })
+      
+      grade6Students.forEach((student, index) => {
         allTables[0][index % totalTables.value].push(student)
       })
 
@@ -350,18 +362,16 @@ const generateTables = () => {
           gradeTables[index % numberOfTables].push(teacher)
         })
 
-        // Distribute students
-        gradeStudents
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .forEach((student, index) => {
-            gradeTables[index % numberOfTables].push(student)
-          })
+        // Randomly distribute students
+        const shuffledStudents = [...gradeStudents].sort(() => Math.random() - 0.5)
+        shuffledStudents.forEach((student, index) => {
+          gradeTables[index % numberOfTables].push(student)
+        })
 
-        // Sort people within each table: teachers first, then students by name
+        // Sort people within each table: teachers first, then students remain in random order
         allTables[grade] = gradeTables.map(table => {
           const teachers = table.filter(person => person.type === 'teacher')
           const students = table.filter(person => person.type === 'student')
-            .sort((a, b) => a.name.localeCompare(b.name))
           return [...teachers, ...students]
         })
       })
