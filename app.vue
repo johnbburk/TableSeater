@@ -44,7 +44,7 @@
               <v-card-text>
                 <v-textarea
                   v-model="teacherInput"
-                  label="Teachers (name, grade, and optional table number, tab-separated, one per line)"
+                  label="Teachers (name and optional table number, tab-separated, one per line)"
                   rows="5"
                   placeholder="Last Name, First Name&#9;10&#9;1"
                 ></v-textarea>
@@ -203,7 +203,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 interface Person {
   name: string
   type: 'student' | 'teacher'
-  grade: number
+  grade?: number
   tableNumber?: number // Add optional tableNumber property
 }
 
@@ -286,12 +286,12 @@ const importPeople = async (type: 'student' | 'teacher') => {
       const person: Person = {
         name: parts[0].trim(),
         type,
-        grade: parseInt(parts[1]?.trim() || '0', 10)
+        grade: type === 'student' ? parseInt(parts[1]?.trim() || '0', 10) : undefined
       }
       
       // Add tableNumber for teachers if provided
-      if (type === 'teacher' && parts.length > 2) {
-        person.tableNumber = parseInt(parts[2]?.trim() || '0', 10)
+      if (type === 'teacher' && parts.length > 1) {
+        person.tableNumber = parseInt(parts[1]?.trim() || '0', 10)
       }
       
       return person
