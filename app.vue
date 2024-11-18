@@ -1151,64 +1151,52 @@ li:hover {
 
 .people-list.grade-columns {
   display: flex;
-  justify-content: center; /* Center the columns */
-  gap: 2rem;
-  width: 100%;
+  justify-content: center;
+  width: 80%;
+  margin: 0 auto;
+  padding: 0;
+  gap: 4rem;
 }
 
 .people-list.grade-columns .grade-column {
-  flex: 0 0 calc(33.33% - 1.33rem); /* Fixed width, don't grow or shrink */
-  width: calc(33.33% - 1.33rem); /* Explicit width as backup */
-  min-width: 0; /* Allow text to wrap */
-}
-
-/* Ensure list items don't break the layout */
-.people-list.grade-columns li {
-  margin-bottom: 0.5rem;
-  white-space: normal; /* Allow text to wrap */
-}
-
-@media print {
-  .people-list.grade-columns {
-    gap: 0.5in;
-  }
-
-  .people-list.grade-columns .grade-column {
-    flex: 0 0 calc(33.33% - 0.33in);
-    width: calc(33.33% - 0.33in);
-  }
-
-  .grade-header {
-    margin-bottom: 0.25in;
-  }
+  flex: 0 0 25%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 1rem;
 }
 
 .grade-header {
-  text-align: center;
+  text-align: left;
   font-size: 1.2rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  padding: 0.5rem;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  padding: 0;
+  width: 100%;
 }
 
-/* Ensure list items don't break the layout */
 .people-list.grade-columns li {
-  margin-bottom: 0.5rem;
+  width: 100%;
+  padding: 0.2rem 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 @media print {
   .people-list.grade-columns {
-    gap: 0.5in;
+    width: 80%;
+    margin: 0 auto;
+    gap: 2rem;
   }
 
   .people-list.grade-columns .grade-column {
-    flex: 1;
+    flex: 0 0 25%;
+    padding: 0 0.5rem;
   }
 
-  .grade-header {
-    margin-bottom: 0.25in;
+  .people-list.grade-columns li {
+    padding: 0.1rem 0;
   }
 }
 </style>
