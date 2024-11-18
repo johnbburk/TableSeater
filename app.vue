@@ -163,16 +163,38 @@
             
             <v-btn @click="printTableCards" color="primary" class="print-button no-print">Print Table Cards</v-btn>
             <div class="table-cards-container">
-              <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
-                <h3 class="table-number">Table {{ card.tableNumber }}</h3>
-                <p v-if="tableCardNote" class="table-card-note">{{ tableCardNote }}</p>
-                <ul class="people-list">
-                  <li v-for="(person, index) in card.people" :key="index">
-                    <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
-                    <span v-else>{{ person.name }} (Grade {{ person.grade }})</span>
-                  </li>
-                </ul>
-              </div>
+              <!-- Whole school seating -->
+              <template v-if="seatingMode === 'whole'">
+                <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
+                  <h3 class="table-number">Table {{ card.tableNumber }}</h3>
+                  <p v-if="tableCardNote" class="table-card-note">{{ tableCardNote }}</p>
+                  <ul class="people-list">
+                    <li v-for="person in (card as WholeSchoolCard).people" :key="person.name">
+                      <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
+                      <span v-else>{{ person.name }} (Grade {{ person.grade }})</span>
+                    </li>
+                  </ul>
+                </div>
+              </template>
+
+              <!-- Individual grade seating -->
+              <template v-else>
+                <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
+                  <h3 class="table-number">Table {{ card.tableNumber }}</h3>
+                  <p v-if="tableCardNote" class="table-card-note">{{ tableCardNote }}</p>
+                  <ul class="people-list grade-columns">
+                    <template v-for="grade in [6, 7, 8]" :key="grade">
+                      <div v-if="(card as GradeCard).gradeGroups[grade]?.length > 0" class="grade-column">
+                        <h3 class="grade-header">Grade {{ grade }}</h3>
+                        <li v-for="person in (card as GradeCard).gradeGroups[grade]" :key="person.name">
+                          <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
+                          <span v-else>{{ person.name }}</span>
+                        </li>
+                      </div>
+                    </template>
+                  </ul>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -455,40 +477,56 @@ const onDrop = (grade: number, targetTableIndex: number) => {
   draggedPerson.value = null
 }
 
-const tableCards = computed(() => {
-  const cards = []
-  const grades = seatingMode.value === 'whole' ? [0] : [6, 7, 8]
-  const maxTables = seatingMode.value === 'whole' ? totalTables.value : Math.max(...Object.values(tablesPerGrade.value))
-  
-  for (let tableNumber = 1; tableNumber <= maxTables; tableNumber++) {
-    const card = {
-      tableNumber,
-      people: [] as Person[]
-    }
+// Add these interfaces at the top of the script section
+interface WholeSchoolCard {
+  type: 'whole'
+  tableNumber: number
+  people: Person[]
+}
 
-    if (seatingMode.value === 'whole') {
-      card.people = tables.value[currentRotation.value]?.[0]?.[tableNumber - 1] || []
-    } else {
-      for (let grade of grades) {
-        if (tableNumber <= tablesPerGrade.value[grade as keyof typeof tablesPerGrade.value]) {
-          const tablePeople = tables.value[currentRotation.value]?.[grade]?.[tableNumber - 1] || []
-          card.people.push(...tablePeople)
+interface GradeCard {
+  type: 'individual'
+  tableNumber: number
+  gradeGroups: {
+    6: Person[]
+    7: Person[]
+    8: Person[]
+  }
+}
+
+type TableCard = WholeSchoolCard | GradeCard
+
+// Update the tableCards computed property
+const tableCards = computed((): TableCard[] => {
+  if (seatingMode.value === 'whole') {
+    return Array.from({ length: totalTables.value }, (_, index) => {
+      const tableNumber = index + 1
+      const people = tables.value[currentRotation.value]?.[0]?.[index] || []
+      
+      return {
+        type: 'whole',
+        tableNumber,
+        people: [...people].sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'teacher' ? -1 : 1
+          if (a.grade && b.grade && a.grade !== b.grade) return b.grade - a.grade
+          return a.name.localeCompare(b.name)
+        })
+      }
+    }).filter(card => card.people.length > 0)
+  } else {
+    return Array.from({ length: Math.max(...Object.values(tablesPerGrade.value)) }, (_, index) => {
+      const tableNumber = index + 1
+      return {
+        type: 'individual',
+        tableNumber,
+        gradeGroups: {
+          6: tables.value[currentRotation.value]?.[6]?.[index] || [],
+          7: tables.value[currentRotation.value]?.[7]?.[index] || [],
+          8: tables.value[currentRotation.value]?.[8]?.[index] || []
         }
       }
-    }
-
-    if (card.people.length > 0) {
-      // Sort people: teachers first, then students by grade (descending) and name
-      card.people.sort((a, b) => {
-        if (a.type !== b.type) return a.type === 'teacher' ? -1 : 1
-        if (a.grade !== b.grade) return b.grade - a.grade
-        return a.name.localeCompare(b.name)
-      })
-      cards.push(card)
-    }
+    }).filter(card => Object.values(card.gradeGroups).some(group => group.length > 0))
   }
-  
-  return cards
 })
 
 const studentLists = computed(() => {
@@ -668,17 +706,16 @@ li:hover {
 }
 
 .table-card-print {
-  width: 7.5in;
-  height: 4.5in;
   border: 1px solid #000;
-  margin: 0;
-  padding: 0.25in;
-  box-sizing: border-box;
+  padding: 1rem;
+  margin-bottom: 1rem;
   page-break-inside: avoid;
+  width: 100%;
+  min-height: 400px; /* Set a minimum height */
+  position: relative; /* For background positioning */
   display: flex;
   flex-direction: column;
-  position: relative;
-  overflow: hidden;
+  align-items: center;
 }
 
 .table-card-print::before {
@@ -688,12 +725,39 @@ li:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background-image: url('/logo.png'); /* Ensure this path is correct */
+  background-image: url('/logo.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
   opacity: 0.2;
   pointer-events: none;
+  z-index: 0;
+}
+
+.table-number, .table-card-note, .people-list {
+  position: relative; /* Place above background */
+  z-index: 1;
+}
+
+/* Style for whole school seating */
+.table-card-print .people-list:not(.grade-columns) {
+  list-style-type: none;
+  padding: 0;
+  margin: 0 auto; /* Center the list */
+  width: calc(33.33% - 1.33rem); /* Match the width of grade columns */
+  text-align: left;
+}
+
+@media print {
+  .table-card-print {
+    padding: 0.25in;
+    margin-bottom: 0.5in;
+    min-height: 5in; /* Adjust for print */
+  }
+
+  .table-card-print .people-list:not(.grade-columns) {
+    width: calc(33.33% - 0.33in);
+  }
 }
 
 .table-number {
@@ -1082,6 +1146,69 @@ li:hover {
   .people-list li {
     font-size: 12px;
     margin-bottom: 0.1rem;
+  }
+}
+
+.people-list.grade-columns {
+  display: flex;
+  justify-content: center; /* Center the columns */
+  gap: 2rem;
+  width: 100%;
+}
+
+.people-list.grade-columns .grade-column {
+  flex: 0 0 calc(33.33% - 1.33rem); /* Fixed width, don't grow or shrink */
+  width: calc(33.33% - 1.33rem); /* Explicit width as backup */
+  min-width: 0; /* Allow text to wrap */
+}
+
+/* Ensure list items don't break the layout */
+.people-list.grade-columns li {
+  margin-bottom: 0.5rem;
+  white-space: normal; /* Allow text to wrap */
+}
+
+@media print {
+  .people-list.grade-columns {
+    gap: 0.5in;
+  }
+
+  .people-list.grade-columns .grade-column {
+    flex: 0 0 calc(33.33% - 0.33in);
+    width: calc(33.33% - 0.33in);
+  }
+
+  .grade-header {
+    margin-bottom: 0.25in;
+  }
+}
+
+.grade-header {
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+/* Ensure list items don't break the layout */
+.people-list.grade-columns li {
+  margin-bottom: 0.5rem;
+}
+
+@media print {
+  .people-list.grade-columns {
+    gap: 0.5in;
+  }
+
+  .people-list.grade-columns .grade-column {
+    flex: 1;
+  }
+
+  .grade-header {
+    margin-bottom: 0.25in;
   }
 }
 </style>
