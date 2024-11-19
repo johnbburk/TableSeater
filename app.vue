@@ -761,7 +761,7 @@ li:hover {
 }
 
 .table-number {
-  font-size: 24px;
+  font-size: 28px;
   text-align: center;
   margin-bottom: 1rem;
 }
@@ -1136,7 +1136,7 @@ li:hover {
 }
 
 .people-list li {
-  font-size: 14px;
+  font-size: 20px;
   margin-bottom: 0.2rem;
 }
 
@@ -1164,12 +1164,12 @@ li:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 0 1rem;
+  padding: 0 3%;
 }
 
 .grade-header {
   text-align: left;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 1rem;
   padding: 0;
