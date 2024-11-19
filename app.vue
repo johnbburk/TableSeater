@@ -241,7 +241,7 @@ const activeTab = ref('rosters')
 const printMode = ref(false)
 
 // New: Number of tables for each grade
-const tablesPerGrade = ref({
+const tablesPerGrade = ref<GradeGroups>({
   6: 8,
   7: 9,
   8: 10
@@ -478,23 +478,25 @@ const onDrop = (grade: number, targetTableIndex: number) => {
 }
 
 // Add these interfaces at the top of the script section
+interface GradeGroups {
+  6: Person[];
+  7: Person[];
+  8: Person[];
+}
+
 interface WholeSchoolCard {
-  type: 'whole'
-  tableNumber: number
-  people: Person[]
+  type: 'whole';
+  tableNumber: number;
+  people: Person[];
 }
 
 interface GradeCard {
-  type: 'individual'
-  tableNumber: number
-  gradeGroups: {
-    6: Person[]
-    7: Person[]
-    8: Person[]
-  }
+  type: 'individual';
+  tableNumber: number;
+  gradeGroups: GradeGroups;
 }
 
-type TableCard = WholeSchoolCard | GradeCard
+type TableCard = WholeSchoolCard | GradeCard;
 
 // Update the tableCards computed property
 const tableCards = computed((): TableCard[] => {
@@ -504,7 +506,7 @@ const tableCards = computed((): TableCard[] => {
       const people = tables.value[currentRotation.value]?.[0]?.[index] || []
       
       return {
-        type: 'whole',
+        type: 'whole' as const,
         tableNumber,
         people: [...people].sort((a, b) => {
           if (a.type !== b.type) return a.type === 'teacher' ? -1 : 1
@@ -517,7 +519,7 @@ const tableCards = computed((): TableCard[] => {
     return Array.from({ length: Math.max(...Object.values(tablesPerGrade.value)) }, (_, index) => {
       const tableNumber = index + 1
       return {
-        type: 'individual',
+        type: 'individual' as const,
         tableNumber,
         gradeGroups: {
           6: tables.value[currentRotation.value]?.[6]?.[index] || [],
@@ -585,15 +587,242 @@ const resetList = (type: 'student' | 'teacher') => {
 }
 
 const printTableCards = () => {
-  printMode.value = true
-  document.body.classList.add('print-table-cards')
-  setTimeout(() => {
-    window.print()
-    setTimeout(() => {
-      printMode.value = false
-      document.body.classList.remove('print-table-cards')
-    }, 500)
-  }, 500)
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const rotation = currentRotation.value
+  const logoUrl = new URL('/logo.png', window.location.href).href // Get absolute URL for logo
+
+  const content = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Table Cards - Rotation ${rotation}</title>
+      <style>
+        @page {
+          size: letter portrait;
+          margin: 1in 0; /* 1 inch margin top and bottom */
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          column-gap: 0;
+          row-gap: 0.5in; /* Add half inch gap between rows */
+        }
+        .table-card {
+          width: 6.5in;
+          height: 4.25in;
+          padding: 0.25in;
+          position: relative;
+          box-sizing: border-box;
+          border: 1px solid #000;
+          background-color: white;
+          break-inside: avoid;
+          page-break-inside: avoid;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        /* Force two cards per page with page break */
+        .table-card:nth-child(2n) {
+          page-break-after: always;
+        }
+        .table-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-image: url("${logoUrl}");
+          background-size: 60% auto;
+          background-repeat: no-repeat;
+          background-position: center;
+          opacity: 0.15;
+          pointer-events: none;
+          z-index: 0;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        /* Rest of the styles remain the same */
+        .table-number {
+          font-size: 28px;  /* Slightly larger */
+          text-align: center;
+          margin-bottom: 0.15in;  /* Reduced margin to make more room */
+          position: relative;
+          z-index: 1;
+          font-weight: bold;
+        }
+        
+        .table-note {
+          text-align: center;
+          font-style: italic;
+          margin-bottom: 0.15in;  /* Reduced margin */
+          position: relative;
+          z-index: 1;
+          font-size: 14px;
+        }
+        
+        .grade-columns {
+          display: flex;
+          justify-content: space-between;
+          width: 95%;
+          margin: 0 auto;
+          gap: 0.25in;
+          position: relative;
+          z-index: 1;
+        }
+        
+        .grade-column {
+          flex: 1;
+          text-align: left;
+          min-width: 0;  /* Allow flex items to shrink below content size */
+        }
+        
+        .grade-header {
+          font-size: 16px;
+          margin-bottom: 0.1in;  /* Reduced margin */
+          text-align: center;
+          font-weight: bold;
+        }
+        
+        .people-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          font-size: 14px;  /* Increased from 10px */
+          line-height: 1.4;
+        }
+        
+        .people-list li {
+          margin-bottom: 0.08in;
+          white-space: nowrap;  /* Prevent wrapping */
+          overflow: hidden;
+          text-overflow: ellipsis;  /* Show ... if text overflows */
+        }
+        
+        .single-column-list {
+          width: 60%;  /* Increased from 33% to allow for larger text */
+          margin: 0 auto;
+          text-align: left;
+        }
+        
+        /* Add styles for teacher names */
+        .people-list li strong {
+          font-size: 16px;  /* Slightly larger for teacher names */
+          display: block;  /* Put teachers on their own line */
+          margin-bottom: 0.05in;
+        }
+
+        /* Adjust font size based on number of students */
+        .grade-column:only-child .people-list {
+          font-size: 16px;
+        }
+        
+        .grade-column:first-child:nth-last-child(2) .people-list,
+        .grade-column:last-child:nth-child(2) .people-list {
+          font-size: 15px;
+        }
+        
+        .grade-column:first-child:nth-last-child(3) .people-list,
+        .grade-column:nth-child(2):nth-last-child(2) .people-list,
+        .grade-column:last-child:nth-child(3) .people-list {
+          font-size: 14px;
+        }
+
+        /* Whole school mode specific adjustments */
+        .single-column-list li {
+          font-size: 16px;
+          margin-bottom: 0.1in;
+        }
+        
+        .single-column-list li strong {
+          font-size: 18px;
+          margin-bottom: 0.08in;
+        }
+      </style>
+    </head>
+    <body>
+      ${tableCards.value.map(card => {
+        if (card.type === 'whole') {
+          return `
+            <div class="table-card">
+              <h3 class="table-number">Table ${card.tableNumber}</h3>
+              ${tableCardNote.value ? `<p class="table-note">${tableCardNote.value}</p>` : ''}
+              <ul class="people-list single-column-list">
+                ${card.people.map(person => `
+                  <li>
+                    ${person.type === 'teacher' 
+                      ? `<strong>${person.name}</strong>` 
+                      : `${person.name} (Grade ${person.grade})`}
+                  </li>
+                `).join('')}
+              </ul>
+            </div>
+          `
+        } else {
+          return `
+            <div class="table-card">
+              <h3 class="table-number">Table ${card.tableNumber}</h3>
+              ${tableCardNote.value ? `<p class="table-note">${tableCardNote.value}</p>` : ''}
+              <div class="grade-columns">
+                ${[6, 7, 8].map(grade => {
+                  const people = card.gradeGroups[grade as keyof GradeGroups]
+                  if (people.length === 0) return ''
+                  return `
+                    <div class="grade-column">
+                      <h3 class="grade-header">Grade ${grade}</h3>
+                      <ul class="people-list">
+                        ${people.map(person => `
+                          <li>${person.type === 'teacher' ? `<strong>${person.name}</strong>` : 
+                            person.name}</li>
+                        `).join('')}
+                      </ul>
+                    </div>
+                  `
+                }).join('')}
+              </div>
+            </div>
+          `
+        }
+      }).join('')}
+    </body>
+    </html>
+  `
+
+  // Write the content to the new window
+  printWindow.document.write(content)
+  printWindow.document.close()
+
+  // Wait for both DOM and images to load before printing
+  printWindow.onload = () => {
+    // Create an image element to preload the logo
+    const img = new Image()
+    img.src = logoUrl
+    img.onload = () => {
+      // Once logo is loaded, proceed with printing
+      setTimeout(() => {
+        printWindow.print()
+        setTimeout(() => {
+          printWindow.close()
+        }, 1000)
+      }, 500)
+    }
+    // Fallback in case image fails to load
+    img.onerror = () => {
+      console.error('Failed to load logo image')
+      setTimeout(() => {
+        printWindow.print()
+        setTimeout(() => {
+          printWindow.close()
+        }, 1000)
+      }, 500)
+    }
+  }
 }
 
 const printStudentLists = () => {
@@ -700,22 +929,24 @@ li:hover {
 
 .table-cards-container {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-around;
+  flex-direction: column;
   gap: 20px;
+  padding: 20px;
+  align-items: center;
 }
 
 .table-card-print {
+  width: 6.5in;
+  height: 4.25in;
   border: 1px solid #000;
-  padding: 1rem;
+  padding: 0.25in;
   margin-bottom: 1rem;
-  page-break-inside: avoid;
-  width: 100%;
-  min-height: 400px; /* Set a minimum height */
-  position: relative; /* For background positioning */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
+  flex: none;
 }
 
 .table-card-print::before {
@@ -749,81 +980,6 @@ li:hover {
 }
 
 @media print {
-  .table-card-print {
-    padding: 0.25in;
-    margin-bottom: 0.5in;
-    min-height: 5in; /* Adjust for print */
-  }
-
-  .table-card-print .people-list:not(.grade-columns) {
-    width: calc(33.33% - 0.33in);
-  }
-}
-
-.table-number {
-  font-size: 28px;
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.grades-row {
-  display: flex;
-  justify-content: center;
-  flex-grow: 1;
-  gap: 1rem;
-  width: 100%;
-}
-
-.grade-list {
-  flex: 0 1 30%; /* Don't grow, allow shrinking, 30% basis */
-  max-width: 30%; /* Maximum width of 30% */
-  min-width: 0; /* Allow shrinking below content size */
-}
-
-/* Center single grade */
-.grades-row:only-child {
-  justify-content: center;
-}
-
-.grades-row:only-child .grade-list {
-  flex-basis: 60%;
-  max-width: 60%;
-}
-
-/* Center two grades */
-.grades-row:nth-last-child(2):first-child {
-  justify-content: space-around;
-}
-
-.grades-row:nth-last-child(2):first-child .grade-list {
-  flex-basis: 45%;
-  max-width: 45%;
-}
-
-.grade-list:first-child {
-  border-left: none;
-  padding-left: 0;
-}
-
-.grade-list h5 {
-  font-size: 18px;
-  margin-top: 0;
-  margin-bottom: 0.25rem;
-  text-align: center;
-}
-
-.grade-list ul {
-  margin: 0;
-  padding-left: 1rem; /* Add some left padding for the list */
-  list-style-type: none; /* Remove default list styling */
-}
-
-.grade-list li {
-  font-size: 16px;
-  margin-bottom: 0.15rem;
-}
-
-@media print {
   @page {
     size: letter portrait;
     margin: 0;
@@ -837,200 +993,37 @@ li:hover {
   .table-cards-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0;
+    padding: 0;
+    margin: 0;
   }
 
   .table-card-print {
-    width: 7.5in;
-    height: 5in;
-    border: 1px solid #000;
+    width: 6.5in;
+    height: 4.25in;
+    margin: 0 auto;
     padding: 0.25in;
-    margin: 0.5in 0.5in 0 0.5in; /* Top Right Bottom Left */
-    box-sizing: border-box;
-    page-break-inside: avoid;
     page-break-after: always;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    break-inside: avoid;
+    box-sizing: border-box;
   }
 
-  .table-card-print:nth-child(even) {
-    margin-top: 0;
-  }
-
+  /* Remove any margin from the last card */
   .table-card-print:last-child {
     page-break-after: auto;
   }
 
-  .table-number {
-    font-size: 24px;
-    text-align: center;
-    margin-bottom: 0.3rem;
-  }
-
-  .grades-row {
-    display: flex;
-    justify-content: space-around;
-    flex-grow: 1;
-  }
-
-  .grade-list {
-    flex: 1;
-    max-width: 30%;
+  /* Center cards on page */
+  .print-content {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    padding: 0.5in;
+  }
+
+  /* Ensure content fits within card dimensions */
+  .people-list.grade-columns {
+    max-height: 3in; /* Account for padding and headers */
     overflow: hidden;
-  }
-
-  .grade-list h5 {
-    font-size: 18px;
-    margin: 0 0 0.2rem 0;
-    text-align: center;
-  }
-
-  .grade-list ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    flex-grow: 1;
-    overflow-y: auto;
-  }
-
-  .grade-list li {
-    font-size: 12px;
-    margin-bottom: 0.1rem;
-  }
-
-  .v-application {
-    background: none !important;
-  }
-
-  .v-main {
-    padding: 0 !important;
-  }
-
-  .v-container {
-    padding: 0 !important;
-    max-width: none !important;
-  }
-
-  .no-print, .v-btn, h1, h2 {
-    display: none !important;
-  }
-
-  .print-content {
-    visibility: visible;
-    position: static;
-    left: auto;
-    top: auto;
-    width: auto;
-    height: auto;
-    padding: 0;
-  }
-
-  .table-cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.8cm; /* Add gap between cards */
-  }
-
-  .table-card-print {
-    page-break-inside: avoid;
-    margin: 0;
-    padding: 0.25in;
-    border: 1px solid #000;
-    height: calc(5in - 0.4cm); /* Adjust height to account for gap */
-    width: 7.5in;
-    box-sizing: border-box;
-  }
-
-  .table-card-print:nth-child(odd) {
-    page-break-after: avoid;
-  }
-
-  .table-card-print:nth-child(even) {
-    page-break-after: always;
-  }
-
-  /* Remove these pseudo-elements */
-  /*
-  .table-cards-container::before,
-  .table-cards-container::after {
-    content: '';
-    display: block;
-    height: 0.4cm;
-    page-break-before: always;
-  }
-  */
-
-  .student-lists-container {
-    display: flex;
-    font-size: 16pt; /* Even smaller font for print */
-    line-height: 1.1; /* Tighter line height for print */
-  }
-
-  .grade-list-print {
-    flex: 1;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    margin-bottom: 1rem; /* Reduced margin */
-  }
-
-  .grade-list-print:nth-child(3) {
-    flex: 1;
-  }
-
-  .grade-list-print h3 {
-    font-size: 20pt; /* Smaller heading for print */
-  }
-
-  .student-list {
-    column-count: 1;
-    column-gap: 0.5rem;
-  }
-
-  .grade-list-print:nth-child(3) .student-list {
-    column-count: 1;
-  }
-
-  .student-item {
-    margin-bottom: 0.1rem; /* Further reduced margin for print */
-  }
-
-  /* Ensure the container takes up the full page */
-  .print-content {
-    width: 100%;
-    height: 100vh;
-    padding: 0.5in; /* Add some padding around the edges */
-    box-sizing: border-box;
-  }
-
-  .table-card-print::before {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .grade-list {
-    flex: 0 1 30%;
-    max-width: 30%;
-  }
-
-  /* Center single grade in print */
-  .grades-row:only-child .grade-list {
-    flex-basis: 60%;
-    max-width: 60%;
-  }
-
-  /* Center two grades in print */
-  .grades-row:nth-last-child(2):first-child .grade-list {
-    flex-basis: 45%;
-    max-width: 45%;
-  }
-
-  .grade-list li {
-    font-size: 16px;
   }
 }
 
@@ -1151,52 +1144,174 @@ li:hover {
 
 .people-list.grade-columns {
   display: flex;
-  justify-content: center;
-  width: 80%;
+  justify-content: space-between;
+  width: 95%;
   margin: 0 auto;
   padding: 0;
-  gap: 4rem;
+  gap: 0.25in;
 }
 
 .people-list.grade-columns .grade-column {
-  flex: 0 0 25%;
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 0 3%;
+  padding: 0 0.1in;
 }
 
 .grade-header {
-  text-align: left;
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  padding: 0;
+  font-size: 16px;
+  margin-bottom: 0.2in;
   width: 100%;
+  text-align: center;
 }
 
 .people-list.grade-columns li {
   width: 100%;
-  padding: 0.2rem 0;
+  padding: 0.1rem 0;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 @media print {
-  .people-list.grade-columns {
-    width: 80%;
+  @page {
+    size: letter portrait;
+    margin: 0;
+  }
+
+  .table-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .table-card-print {
+    width: 6.5in;
+    height: 4.25in;
     margin: 0 auto;
-    gap: 2rem;
+    margin-bottom: 0.25in;
+    page-break-after: always;
+    break-inside: avoid;
+  }
+
+  .table-card-print:nth-child(odd) {
+    margin-right: auto;
+  }
+
+  .people-list.grade-columns {
+    width: 95%;
+    gap: 0.25in;
   }
 
   .people-list.grade-columns .grade-column {
-    flex: 0 0 25%;
-    padding: 0 0.5rem;
+    flex: 1;
+    padding: 0 0.1in;
+  }
+
+  .grade-header {
+    font-size: 14px;
+    margin-bottom: 0.15in;
   }
 
   .people-list.grade-columns li {
-    padding: 0.1rem 0;
+    font-size: 10px;
+    line-height: 1.2;
+    margin-bottom: 0.05in;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .table-card-print::before {
+    background-size: 60% auto;
+    opacity: 0.15;
+  }
+
+  .table-card-print {
+    height: 4.25in !important;
+    width: 6.5in !important;
+  }
+}
+
+/* Base styles for print/no-print */
+.no-print {
+  display: block;
+}
+
+.print-content {
+  display: block;
+}
+
+@media print {
+  /* Hide elements with no-print class */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show the print content */
+  .print-content {
+    display: block !important;
+  }
+
+  /* Ensure table cards container is visible */
+  .table-cards-container {
+    display: flex !important;
+    flex-direction: column;
+    padding: 0;
+    margin: 0;
+    visibility: visible !important;
+  }
+
+  /* Ensure table cards are visible */
+  .table-card-print {
+    display: flex !important;
+    width: 6.5in;
+    height: 4.25in;
+    margin: 0 auto;
+    padding: 0.25in;
+    page-break-after: always;
+    break-inside: avoid;
+    box-sizing: border-box;
+    visibility: visible !important;
+  }
+
+  /* Hide all tabs except the active table cards tab */
+  .print-content > div:not([v-if="activeTab === 'cards'"]) {
+    display: none !important;
+  }
+
+  /* Remove any margins/padding that might affect layout */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .v-container {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .v-main {
+    padding: 0 !important;
+  }
+
+  /* Ensure content within cards is visible */
+  .table-number,
+  .table-card-note,
+  .people-list,
+  .grade-column,
+  .grade-header {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  /* Keep background image visible */
+  .table-card-print::before {
+    visibility: visible !important;
   }
 }
 </style>
