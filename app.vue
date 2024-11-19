@@ -168,7 +168,7 @@
                 <div v-for="card in tableCards" :key="card.tableNumber" class="table-card-print">
                   <h3 class="table-number">Table {{ card.tableNumber }}</h3>
                   <p v-if="tableCardNote" class="table-card-note">{{ tableCardNote }}</p>
-                  <ul class="people-list">
+                  <ul class="people-list single-column-list">
                     <li v-for="person in (card as WholeSchoolCard).people" :key="person.name">
                       <strong v-if="person.type === 'teacher'">{{ person.name }}</strong>
                       <span v-else>{{ person.name }} (Grade {{ person.grade }})</span>
@@ -591,7 +591,7 @@ const printTableCards = () => {
   if (!printWindow) return
 
   const rotation = currentRotation.value
-  const logoUrl = new URL('/logo.png', window.location.href).href // Get absolute URL for logo
+  const logoUrl = new URL('/logo.png', window.location.href).href
 
   const content = `
     <!DOCTYPE html>
@@ -601,7 +601,7 @@ const printTableCards = () => {
       <style>
         @page {
           size: letter portrait;
-          margin: 1in 0; /* 1 inch margin top and bottom */
+          margin: 1in 0;
         }
         body {
           margin: 0;
@@ -611,7 +611,7 @@ const printTableCards = () => {
           flex-wrap: wrap;
           justify-content: center;
           column-gap: 0;
-          row-gap: 0.5in; /* Add half inch gap between rows */
+          row-gap: 0.5in;
         }
         .table-card {
           width: 6.5in;
@@ -627,7 +627,6 @@ const printTableCards = () => {
           flex-direction: column;
           align-items: center;
         }
-        /* Force two cards per page with page break */
         .table-card:nth-child(2n) {
           page-break-after: always;
         }
@@ -648,25 +647,22 @@ const printTableCards = () => {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
-        /* Rest of the styles remain the same */
         .table-number {
-          font-size: 28px;  /* Slightly larger */
+          font-size: 24px;
           text-align: center;
-          margin-bottom: 0.15in;  /* Reduced margin to make more room */
+          margin-bottom: 0.15in;
           position: relative;
           z-index: 1;
           font-weight: bold;
         }
-        
         .table-note {
           text-align: center;
           font-style: italic;
-          margin-bottom: 0.15in;  /* Reduced margin */
+          margin-bottom: 0.15in;
           position: relative;
           z-index: 1;
           font-size: 14px;
         }
-        
         .grade-columns {
           display: flex;
           justify-content: space-between;
@@ -676,73 +672,58 @@ const printTableCards = () => {
           position: relative;
           z-index: 1;
         }
-        
         .grade-column {
           flex: 1;
           text-align: left;
-          min-width: 0;  /* Allow flex items to shrink below content size */
         }
-        
         .grade-header {
           font-size: 16px;
-          margin-bottom: 0.1in;  /* Reduced margin */
+          margin-bottom: 0.1in;
           text-align: center;
           font-weight: bold;
         }
-        
         .people-list {
           list-style: none;
           padding: 0;
           margin: 0;
-          font-size: 14px;  /* Increased from 10px */
+          font-size: 14px;
           line-height: 1.4;
         }
-        
         .people-list li {
           margin-bottom: 0.08in;
-          white-space: nowrap;  /* Prevent wrapping */
+          white-space: nowrap;
           overflow: hidden;
-          text-overflow: ellipsis;  /* Show ... if text overflows */
+          text-overflow: ellipsis;
         }
-        
         .single-column-list {
-          width: 60%;  /* Increased from 33% to allow for larger text */
+          width: 80%;
           margin: 0 auto;
-          text-align: left;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
-        
-        /* Add styles for teacher names */
-        .people-list li strong {
-          font-size: 16px;  /* Slightly larger for teacher names */
-          display: block;  /* Put teachers on their own line */
-          margin-bottom: 0.05in;
-        }
-
-        /* Adjust font size based on number of students */
-        .grade-column:only-child .people-list {
-          font-size: 16px;
-        }
-        
-        .grade-column:first-child:nth-last-child(2) .people-list,
-        .grade-column:last-child:nth-child(2) .people-list {
-          font-size: 15px;
-        }
-        
-        .grade-column:first-child:nth-last-child(3) .people-list,
-        .grade-column:nth-child(2):nth-last-child(2) .people-list,
-        .grade-column:last-child:nth-child(3) .people-list {
-          font-size: 14px;
-        }
-
-        /* Whole school mode specific adjustments */
         .single-column-list li {
-          font-size: 16px;
-          margin-bottom: 0.1in;
-        }
-        
-        .single-column-list li strong {
-          font-size: 18px;
+          font-size: 13px;
           margin-bottom: 0.08in;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          width: 100%;
+        }
+        .single-column-list li strong {
+          font-size: 15px;
+          margin-bottom: 0.08in;
+          display: block;
+          width: 100%;
+        }
+        .rotation-date {
+          font-size: 16px;
+          text-align: center;
+          margin-bottom: 0.15in;
+          font-style: italic;
+          position: relative;
+          z-index: 1;
         }
       </style>
     </head>
@@ -794,17 +775,13 @@ const printTableCards = () => {
     </html>
   `
 
-  // Write the content to the new window
   printWindow.document.write(content)
   printWindow.document.close()
 
-  // Wait for both DOM and images to load before printing
   printWindow.onload = () => {
-    // Create an image element to preload the logo
     const img = new Image()
     img.src = logoUrl
     img.onload = () => {
-      // Once logo is loaded, proceed with printing
       setTimeout(() => {
         printWindow.print()
         setTimeout(() => {
@@ -812,7 +789,6 @@ const printTableCards = () => {
         }, 1000)
       }, 500)
     }
-    // Fallback in case image fails to load
     img.onerror = () => {
       console.error('Failed to load logo image')
       setTimeout(() => {
