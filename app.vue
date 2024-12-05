@@ -199,7 +199,7 @@
           </div>
 
           <div v-if="activeTab === 'studentLists'">
-            <h2 class="no-print">Student Lists</h2>
+            <h2 class="no-print">Student Lists - Rotation {{ currentRotation }}</h2>
             <v-btn @click="printStudentLists" color="primary" class="print-button no-print">Print Student Lists</v-btn>
             <div class="student-lists-container">
               <div v-for="grade in [6, 7, 8]" :key="grade" class="grade-list-print">
@@ -209,7 +209,6 @@
                     {{ student.name }} - ({{ student.tableNumber }})
                   </div>
                 </div>
-                <hr v-if="grade !== 8" class="grade-separator">
               </div>
             </div>
           </div>
@@ -802,11 +801,79 @@ const printTableCards = () => {
 }
 
 const printStudentLists = () => {
-  printMode.value = true
-  setTimeout(() => {
-    window.print()
-    printMode.value = false
-  }, 100)
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+
+  const content = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Student Lists - Rotation ${currentRotation.value}</title>
+      <style>
+        @page {
+          size: letter portrait;
+          margin: 0.5in;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, sans-serif;
+        }
+        .student-lists-container {
+          display: flex;
+          justify-content: space-between;
+          gap: 2rem;
+          padding: 20px;
+        }
+        .grade-list-print {
+          flex: 1;
+          min-width: 0;
+        }
+        .grade-list-print h3 {
+          font-size: 18pt;
+          margin-bottom: 1rem;
+        }
+        .student-list {
+          font-size: 12pt;
+          line-height: 1.3;
+        }
+        .student-item {
+          margin-bottom: 0.25rem;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="student-lists-container">
+        ${[6, 7, 8].map(grade => `
+          <div class="grade-list-print">
+            <h3>Grade ${grade}</h3>
+            <div class="student-list">
+              ${studentLists.value[grade]
+                .map(student => `
+                  <div class="student-item">
+                    ${student.name} - (${student.tableNumber})
+                  </div>
+                `)
+                .join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </body>
+    </html>
+  `
+
+  printWindow.document.write(content)
+  printWindow.document.close()
+
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.print()
+      setTimeout(() => {
+        printWindow.close()
+      }, 1000)
+    }, 500)
+  }
 }
 
 const rotationItems = computed(() => 
@@ -827,9 +894,9 @@ const loadDemoTeachers = async () => {
 }
 </script>
 
-<style scoped>
+<style>
 div {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 label {
   display: block;
@@ -848,7 +915,7 @@ textarea {
 }
 .tabs {
   display: flex;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 .tabs .v-btn {
@@ -857,7 +924,7 @@ textarea {
 }
 
 .grade-section {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   padding: 1rem;
   background-color: #f9f9f9;
   border-radius: 4px;
@@ -1005,35 +1072,93 @@ li:hover {
 
 .student-lists-container {
   display: flex;
-  font-size: 16px; /* Reduced font size */
-  line-height: 1.2; /* Tightened line height */
-}
-
-.grade-list-print {
-  break-inside: avoid;
-  page-break-inside: avoid;
-  margin-bottom: 1rem; /* Reduced margin */
-  display: inline-block;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 20px;
   width: 100%;
 }
 
-.grade-list-print h3 {
-  font-size: 18px; /* Reduced heading size */
-  margin-bottom: 0.5rem; /* Reduced margin */
+.grade-list-print {
+  flex: 1;
+  min-width: 0;
 }
 
 .student-list {
-  column-count: 1;
-  column-gap: 1rem;
-}
-
-.grade-list-print:nth-child(3) .student-list {
-  column-count: 1;
+  column-count: 1; /* Single column within each grade */
 }
 
 .student-item {
   break-inside: avoid;
-  page-break-inside: avoid;
+  margin-bottom: 0.5rem;
+}
+
+@media print {
+  /* Hide all non-printing elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print content */
+  .print-content {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Container styles */
+  .student-lists-container {
+    display: flex !important;
+    visibility: visible !important;
+    justify-content: space-between !important;
+    gap: 2rem !important;
+    padding: 0.5in !important;
+    width: 100% !important;
+  }
+
+  /* Grade column styles */
+  .grade-list-print {
+    display: block !important;
+    visibility: visible !important;
+    flex: 1 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .grade-list-print h3 {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 16pt !important;
+    margin-bottom: 0.25in !important;
+  }
+
+  .student-list {
+    display: block !important;
+    visibility: visible !important;
+    column-count: 1 !important;
+  }
+
+  .student-item {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 12pt !important;
+    line-height: 1.3 !important;
+    margin-bottom: 0.15in !important;
+  }
+
+  /* Ensure the main container and content are visible */
+  .v-container,
+  .v-main,
+  [v-if="activeTab === 'studentLists'"] {
+    display: block !important;
+    visibility: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Remove any background colors or shadows */
+  .v-container,
+  .v-main {
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
 }
 
 .reset-button {
@@ -1051,7 +1176,7 @@ li:hover {
 
 .rotation-selector {
   max-width: 200px;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .print-button {
@@ -1289,6 +1414,81 @@ li:hover {
   .table-card-print::before {
     visibility: visible !important;
   }
+}
+
+/* Remove 'scoped' and add these print styles at the global level */
+@media print {
+  /* Reset all print hiding */
+  * {
+    visibility: visible !important;
+  }
+
+  /* Basic print setup */
+  @page {
+    size: letter portrait;
+    margin: 0.5in;
+  }
+
+  /* Hide non-print elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Force the main content to be visible */
+  .v-application,
+  .v-application--wrap,
+  .v-main,
+  .v-main__wrap,
+  .container,
+  .print-content {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  /* Student lists specific print styles */
+  .student-lists-container {
+    display: flex !important;
+    visibility: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 1in !important;
+  }
+
+  .grade-list-print {
+    display: block !important;
+    visibility: visible !important;
+    flex: 1 !important;
+    break-inside: avoid !important;
+  }
+
+  .student-list {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .student-item {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 12pt !important;
+    line-height: 1.3 !important;
+    margin-bottom: 0.15in !important;
+  }
+
+  /* Remove any backgrounds and shadows */
+  * {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: black !important;
+  }
+}
+
+.v-text-field {
+  margin-bottom: 0.5rem;
 }
 </style>
 
